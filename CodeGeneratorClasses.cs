@@ -42,6 +42,11 @@ namespace CodeGenerator
             }
         }
 
+        public string GetProtectionLevel()
+        {
+            return string.IsNullOrEmpty(protectionLevel) ? "" : protectionLevel + " ";
+        }
+
         public virtual string ToString(int indentLevel)
         {
             return GetIndentLevel(indentLevel) + ToString();
@@ -66,10 +71,10 @@ namespace CodeGenerator
         List<string> lines;
         public string returnValue;
 
-        public Method(string protectionLevel, 
-            string prefix, 
-            string type, 
-            string name, 
+        public Method(string type,
+            string name,
+            string prefix,
+            string protectionLevel, 
             string region = "Methods", 
             params Parameter[] parameters) : 
             base(protectionLevel, type, name, region)
@@ -80,16 +85,18 @@ namespace CodeGenerator
             lines = new List<string>();
         }
 
-        public Method(string prefix,
-            string type, 
-            string name, 
+        public Method( string type, 
+            string name,
+            string prefix,
             params Parameter[] parameters) : 
-            this("", prefix, type, name) { }
+            this("", prefix, type, name)
+        { }
 
         public Method(string type, 
             string name, 
             params Parameter[] parameters) : 
-            this("", "", type, name) { }
+            this("", "", type, name)
+        { }
 
         public Method() :
          this("", "", "", "")
@@ -149,8 +156,8 @@ namespace CodeGenerator
 
         public string GetFirstLine()
         {
-            return string.Format("{0}{1} {2} ({3})", 
-                protectionLevel, 
+            return string.Format("{0}{1} {2} ({3})",
+                GetProtectionLevel(), 
                 type, 
                 name, 
                 GetParams());
@@ -177,9 +184,8 @@ namespace CodeGenerator
         public override string ToString(int indentLevel)
         {
             var indent = GetIndentLevel(indentLevel);
-            var p = protectionLevel.Length > 0 ? protectionLevel + " " : "";
             return string.Format("{4}{0}{1} {2} ({3})\n{4}{{\n{5}\n{4}}}",
-                p, 
+                GetProtectionLevel(), 
                 type, 
                 name, 
                 GetParams(), 
@@ -190,117 +196,76 @@ namespace CodeGenerator
 
     public class Field : Member
     {
-        protected string defaultFieldValue;
-        public Field(string protectionLevel, 
-            string type, 
+        public string defaultFieldValue;
+        public string prefix;
+        public Field(string type, 
             string name,
-            string defaultFieldValue = null,
+            string protectionLevel,
+            string prefix,
+            string defaultFieldValue,
             string region = "Fields") : 
-            base(protectionLevel, type, name, region)
+            base(type, name, protectionLevel, region)
         {
+            this.prefix = prefix;
             if (!string.IsNullOrEmpty(defaultFieldValue))
             {
-                this.defaultFieldValue = string.Format(" = {0}", defaultFieldValue);
+                this.defaultFieldValue = defaultFieldValue.Contains("=") ?
+                    defaultFieldValue : string.Format(" = {0}", defaultFieldValue);
             }
         }
+        public Field(string type,
+            string name,
+            string protectionLevel,
+            string prefix) :
+            this(type, name, protectionLevel, prefix, null, "Fields")
+        { }
 
-        public Field(string protectionLevel,
-           string type,
-           string name) :
-           this(protectionLevel, type, name, null, "Fields") { }
+        public Field(string type,
+           string name,
+           string protectionLevel) :
+           this(type, name, protectionLevel, null, null, "Fields") { }
 
         public Field(string type,
            string name) :
-           this("", type, name, null, "Fields")  { }
+           this(type, name, null, null, null, "Fields")  { }
+
+        public Field() :
+            this(null, null, null, null, null, "Fields")
+        { }
+
+        string GetPrefix()
+        {
+            return string.IsNullOrEmpty(prefix) ? "" : prefix + " ";
+        }
+
+        public override string ToString()
+        {
+            return ToString(0);
+        }
 
         public override string ToString(int indent)
         {
-            return string.Format("{3}{0}{1} {2}{4};",
-                protectionLevel,
+            return string.Format("{3}{0}{5}{1} {2}{4};",
+                GetProtectionLevel(),
                 type, 
                 name,
                 GetIndentLevel(indent),
-                defaultFieldValue);
-        }
-    }
-
-    public class ConstField : Member
-    {
-        protected string constValue;
-        public ConstField(string protectionLevel,
-          string type,
-          string name,
-          string constValue,
-          string region = "Fields") :
-            base(protectionLevel, type, name, region)
-        {
-            this.constValue = constValue;
-        }
-
-        public ConstField(string protectionLevel,
-            string type,
-            string name,
-            string constValue) :
-          this(protectionLevel, type, name, constValue, "Constants")  { }
-
-        public ConstField(string type,
-           string name,
-           string constValue) :
-        this("", type, name, constValue, "Constants")  { }
-
-        public override string ToString(int indent)
-        {
-            return string.Format("{3}{0}const {1} {2}{4};",
-                protectionLevel,
-                type,
-                name,
-                GetIndentLevel(indent),
-                constValue);
-        }
-    }
-
-    public class ReadonlyField : Field
-    {
-        public ReadonlyField(string protectionLevel,
-            string type,
-            string name,
-            string defaultFieldValue,
-            string region = "Fields") :
-            base(protectionLevel, type, name, defaultFieldValue, region) { }
-
-        public ReadonlyField(string protectionLevel,
-            string type,
-            string name,
-            string defaultFieldValue) :
-            this(protectionLevel, type, name, defaultFieldValue, "Readonly") { }
-
-        public ReadonlyField(string type,
-          string name,
-          string defaultFieldValue) :
-          this("", type, name, defaultFieldValue, "Readonly") { }
-
-        public override string ToString(int indent)
-        {
-            return string.Format("{3}{0}readonly {1} {2}{4};",
-                protectionLevel,
-                type,
-                name,
-                GetIndentLevel(indent),
-                defaultFieldValue);
+                defaultFieldValue,
+                GetPrefix());
         }
     }
 
     public class FieldPropertyPair : Property
     {
-        protected string defaultFieldValue;
-
-        public FieldPropertyPair(string protectionLevel,
-            string type,
+        public string defaultFieldValue;
+        public FieldPropertyPair(string type,
             string name,
+            string protectionLevel,
             string defaultFieldValue,
-            string region,
-            string setterProtection) : 
-            base(protectionLevel, type, name, region, "m_" + name.ToLower(), setterProtection)
+            string prefix,
+            string setterProtection,
+            string region = "Properties") : 
+            base(type, name, protectionLevel, "m_" + name.ToLower(), prefix, setterProtection, region)
         {
             if(!string.IsNullOrEmpty(defaultFieldValue))
             {
@@ -308,30 +273,28 @@ namespace CodeGenerator
             }
         }
 
-        public FieldPropertyPair(string protectionLevel,
-            string type,
+        public FieldPropertyPair(string type,
             string name,
+            string protectionLevel,
             string defaultFieldValue,
-            string region) :
-            this(protectionLevel, type, name, defaultFieldValue, region, "")  { }
+            string prefix) :
+            this(type, name, protectionLevel, defaultFieldValue, prefix, null)  { }
 
-        public FieldPropertyPair(string protectionLevel,
-            string type,
+        public FieldPropertyPair(string type,
             string name,
+            string protectionLevel,
             string defaultFieldValue) :
-            this(protectionLevel, type, name, defaultFieldValue, "Properties") { }
+            this(type, name, protectionLevel, defaultFieldValue, null, null) { }
 
-        public FieldPropertyPair(string protectionLevel,
-            string type,
+        public FieldPropertyPair(string type,
             string name) :
-            this(protectionLevel, type, name, null)   { }
+            this(type, name, null, null)   { }
 
         public override string ToString(int indentLevel)
         {
             var indent = GetIndentLevel(indentLevel);
-            return string.Format(@"
-{5}{4}{1} {3}{6};
-{5}{0}{1} {2} 
+            return string.Format(@"{5}{4}{1} {3}{6};
+{5}{0}{6}{1} {2} 
 {5}{{ 
     {5}get 
     {5}{{
@@ -342,67 +305,14 @@ namespace CodeGenerator
         {5}{3} = value;
     {5}}}
 {5}}}"
-            , protectionLevel,
+            , GetProtectionLevel(),
             type,
             name,
             fieldName,
-            setterProtection,
+            GetSetter(),
             indent,
-            defaultFieldValue);
-        }
-    }
-
-    public class FieldPropertyPairReadonly : FieldPropertyPair
-    {
-        public FieldPropertyPairReadonly(string protectionLevel,
-            string type,
-            string name,
-            string defaultFieldValue,
-            string region,
-            string setterProtection) : 
-            base(protectionLevel, type, name, defaultFieldValue, region, setterProtection)
-        { }
-
-        public FieldPropertyPairReadonly(string protectionLevel,
-            string type,
-            string name,
-            string defaultFieldValue,
-            string region) :
-            this(protectionLevel, type, name, defaultFieldValue, region, "")
-        { }
-
-        public FieldPropertyPairReadonly(string protectionLevel,
-            string type,
-            string name,
-            string defaultFieldValue) :
-         this(protectionLevel, type, name, defaultFieldValue, "Properties")
-        { }
-
-        public FieldPropertyPairReadonly(string protectionLevel,
-            string type,
-            string name) :
-            this(protectionLevel, type, name, null)
-        { }
-
-        public override string ToString(int indentLevel)
-        {
-            var indent = GetIndentLevel(indentLevel);
-            return string.Format(@"
-{5}{4}{1} {3}{6};
-{5}{0}{1} {2} 
-{5}{{ 
-    {5}get 
-    {5}{{
-        {5}return {3};
-    {5}}}
-{5}}}"
-            , protectionLevel,
-            type,
-            name,
-            fieldName,
-            setterProtection,
-            indent,
-            defaultFieldValue);
+            defaultFieldValue,
+            GetPrefix());
         }
     }
 
@@ -410,100 +320,195 @@ namespace CodeGenerator
     {
         public string setterProtection;
 
-        public AutoProperty(string protectionLevel, 
-            string type, 
-            string name, 
-            string region,
-            string setterProtection) : 
-            base(protectionLevel, type, name)
+        public AutoProperty(string type, 
+            string name,
+            string protectionLevel,
+            string setterProtection,
+            string prefix,
+            string region
+           ) : 
+            base(type, name, protectionLevel, region)
         {
-            this.parentRegion = region;
+            this.prefix = prefix;
             this.setterProtection = setterProtection;
         }
 
-        public AutoProperty(string protectionLevel,
-           string type,
+        public AutoProperty(string type,
            string name,
-           string region) :
-           this(protectionLevel, type, name, region, "")
+           string protectionLevel,
+           string setterProtection,
+           string prefix) :
+           this(type, name, protectionLevel, setterProtection, prefix, "Properties")
         { }
 
-        public AutoProperty(string protectionLevel,
-            string type,
-            string name) :
-            this(protectionLevel, type, name, "Properties")
+        public AutoProperty(string type,
+            string name,
+            string protectionLevel) :
+            this(type, name, protectionLevel, null, "Properties")
         { }
+
+        public AutoProperty() : this(null, null, null)
+        {
+
+        }
+
+        protected string GetPrefix()
+        {
+            return string.IsNullOrEmpty(prefix) ? "" : prefix + " ";
+        }
 
         public override string ToString()
         {
-            return string.Format("{0}{1} {2} {{ get; {3}set; }}",
-                protectionLevel,
-                type, 
-                name,
-                setterProtection);
+            return ToString(0);
+        }
+
+        protected string GetSetter()
+        {
+            return string.IsNullOrEmpty(setterProtection) ? "" : setterProtection + " ";
         }
 
         public override string ToString(int indent)
         {
-            return string.Format("{4}{0}{1} {2} {{ get; {3}set; }}",
-                protectionLevel,
+            return string.Format("{4}{0}{5}{1} {2} {{ get; {3}set; }}",
+                GetProtectionLevel(),
                 type, 
                 name,
-                setterProtection, 
-                GetIndentLevel(indent));
+                 GetSetter(), 
+                GetIndentLevel(indent),
+                GetPrefix());
         }
     }
 
     public class Property : AutoProperty
     {
         public string fieldName;
-
-        public Property(string protectionLevel, 
-            string type,
+        public bool readOnly;
+        List<string> setterBody = new List<string>();
+        List<string> getterBody = new List<string>();
+        public Property(string type,
             string name,
+            string protectionLevel,
             string fieldName,
-            string region,
-            string setterProtection) : 
-            base(protectionLevel, type, name, region, setterProtection)
+            string prefix,
+            string setterProtection,
+            string region) : 
+            base(type, name, protectionLevel, setterProtection, prefix, region)
         {
             this.fieldName = string.IsNullOrEmpty(fieldName) ? "m_" + name.ToLower() : fieldName;
         }
 
-        public Property(string protectionLevel,
-            string type,
+        public Property(string type,
             string name,
+            string protectionLevel,
             string fieldName,
-            string region) :
-            this(protectionLevel, type, name, region, fieldName, "")
+            string prefix,
+            string setterProtection) :
+            this(type, name, protectionLevel, fieldName, prefix, setterProtection, "Properties")
         { }
 
-        public Property(string protectionLevel,
-            string type,
+        public Property(string type,
             string name,
-            string fieldName) :
-            this(protectionLevel, type, name, fieldName, "Properties")
+            string protectionLevel,
+            string fieldName,
+            string prefix) :
+            this(type, name, protectionLevel, fieldName, prefix, "")
         { }
+
+        public Property(string type,
+          string name) :
+          this(type, name, "", "", "")
+        { }
+
+        public Property() :
+         this("", "", "", "", "")
+        { }
+
+        public void AddSetterBodyLine(string line)
+        {
+            setterBody.Add(line);
+        }
+
+        public void AddGetterBodyLine(string line)
+        {
+            getterBody.Add(line);
+        }
+
+        protected string GetSetterBody(int indentLevel)
+        {
+            if (setterBody.Count == 0) return string.Empty;
+            StringBuilder s = new StringBuilder(setterBody.Count);
+            s.AppendLine();
+            foreach (var line in setterBody)
+            {
+                s.Append(GetIndentLevel(indentLevel));
+                s.AppendLine(line);
+            }
+            return s.ToString();
+        }
+
+        protected string GetGetterBody(int indentLevel)
+        {
+            if (getterBody.Count == 0) return string.Empty;
+            StringBuilder s = new StringBuilder(getterBody.Count);
+            s.AppendLine();
+            foreach (var line in getterBody)
+            {
+                s.Append(GetIndentLevel(indentLevel));
+                s.AppendLine(line);
+            }
+            return s.ToString();
+        }
+
+        string GetFormat()
+        {
+            return readOnly ?
+                @"{5}{0}{6}{1} {2} 
+{5}{{ 
+    {5}get 
+    {5}{{{7}
+        {5}return {3};
+    {5}}}
+{5}}}"
+:
+@"{5}{0}{6}{1} {2} 
+{5}{{ 
+    {5}get 
+    {5}{{{7}
+        {5}return {3};
+    {5}}}
+    {5}{4}set 
+    {5}{{{8}
+        {5}{3} = value;
+    {5}}}
+{5}}}";
+
+        }
 
         public override string ToString(int indentLevel)
         {
             var indent = GetIndentLevel(indentLevel);
-            return string.Format(@"{5}{0}{1} {2} 
-{5}{{ 
-    {5}get 
-    {5}{{
-        {5}return {3};
-    {5}}}
-    {5}{4}set 
-    {5}{{
-        {5}{3} = value;
-    {5}}}
-{5}}}"
-            , protectionLevel,
-            type, 
-            name, 
-            fieldName.ToLower(),
-            setterProtection,
-            indent);
+            return readOnly ? string.Format(
+                GetFormat()
+                ,GetProtectionLevel(),
+                type, 
+                name, 
+                fieldName,
+                GetSetter(),
+                indent,
+                GetPrefix(),
+                GetSetterBody(indentLevel)) 
+            :
+            string.Format(
+                GetFormat()
+                , GetProtectionLevel(),
+                type,
+                name,
+                fieldName,
+                GetSetter(),
+                indent,
+                GetPrefix(),
+                GetGetterBody(indentLevel),
+                GetSetterBody(indentLevel));
         }
     }
 
@@ -512,6 +517,7 @@ namespace CodeGenerator
         List<string> directives = new List<string>();
         List<string> regions = new List<string>();
         List<string> inherited = new List<string>();
+        List<string> attributes = new List<string>();
         List<Member> members = new List<Member>();
 
         const string REGION = "#region ";
@@ -520,7 +526,6 @@ namespace CodeGenerator
         const string CLOSE_PARENTESIS = "}";
 
         string indent;
-        string prefix = " ";
         int indentLevel;
         int builderCapacity = 10000;
 
@@ -550,6 +555,12 @@ namespace CodeGenerator
         public Class AddMember(Member member)
         {
             members.Add(member);
+            return this;
+        }
+
+        public Class AddAttribute(string attribute)
+        {
+            attributes.Add(attribute);
             return this;
         }
 
@@ -588,6 +599,8 @@ namespace CodeGenerator
             StringBuilder builder = new StringBuilder(10000);
             indent = GetIndentLevel(indentLevel);
             AppendDirectives(builder);
+            builder.AppendLine();
+            AppentAttributes(builder);
             AppendClassName(builder);
             AppendInheritance(builder);
             builder.AppendLine();
@@ -631,15 +644,29 @@ namespace CodeGenerator
             return builder;
         }
 
+        StringBuilder AppentAttributes(StringBuilder builder)
+        {
+            foreach (var at in attributes)
+            {
+                if (!at.Contains("["))
+                {
+                    builder.Append("[");
+                    if(!at.Contains(@"\n"))
+                        builder.AppendLine(at);
+                    else builder.Append(at);
+                    builder.Append("]");
+                } 
+                else builder.AppendLine(at);
+            }
+            return builder;
+        }
+
         StringBuilder AppendClassName(StringBuilder builder)
         {
-            builder.AppendLine();
             builder.Append(indent);
             if (!string.IsNullOrEmpty(prefix))
                 prefix += " ";
-            if (!string.IsNullOrEmpty(protectionLevel))
-                protectionLevel += " ";
-            builder.AppendFormat("{0}{3}{1} {2}", protectionLevel, type, name, prefix);
+            builder.AppendFormat("{0}{3}{1} {2}", GetProtectionLevel(), type, name, prefix);
             return builder;
         }
 
@@ -738,7 +765,7 @@ namespace CodeGenerator
 
         protected IEnumerable<string> GetRegions(string body, int indent)
         {
-            var pattern = string.Format(GetIndent(indent) + @"\#region.*", indent);
+            var pattern = string.Format(GetIndent(indent) + @"\#region\s.*", indent);
             var matches = Regex.Matches(body, pattern);
             for (int i = 0; i < matches.Count; i++)
             {
@@ -747,62 +774,17 @@ namespace CodeGenerator
             }
         }
 
-        protected string GetRegionName(string line)
+        protected IEnumerable<string> GetDirectives(string body)
         {
-            var pattern = @"^[ ]*\#region\s(\w+.*$)";
-            var res = Regex.Match(line, pattern);
-            return res.Groups.Count > 1 ? res.Groups[1].Value : null;
-        }
-
-        protected string GetClassName(string line)
-        {
-            var pattern = @"^.*\sclass\s(\w+)";
-            var res = Regex.Match(line, pattern);
-            return res.Groups.Count > 1 ? res.Groups[1].Value : null;
-        }
-
-        protected IEnumerable<string> GetClassInheritance(string line)
-        {
-            var pattern = @"^.*\sclass\s\w+\s?:\s?(.*$)";
-            var res = Regex.Match(line, pattern);
-            if(res.Groups.Count > 1)
-            {
-                line = res.Groups[1].Value;
-                var inh = line.Split(',');
-                foreach (var i in inh)
-                {
-                    yield return Regex.Replace(i, @"[\s*\{]", "");
-                }
-            }
-        }
-
-        protected IEnumerable<string> GetMembers(int indent, string body)
-        {
-            var pattern = string.Format(@"^[ ]{{0}}((\w+.*\n[ ]{{0}}\{)|(\w+.*\{$))", indent * SPACES_PER_TAB);
+            var pattern = @"using\s(.*);";
             var matches = Regex.Matches(body, pattern);
+
             for (int i = 0; i < matches.Count; i++)
             {
-                var v = matches[i].Value;
-                yield return v;
+                var groups = matches[i].Groups;
+                if (groups.Count > 1)
+                    yield return groups[1].Value;
             }
-        }
-
-        protected IEnumerable<string> GetFields(int indent, string body)
-        {
-            var pattern = string.Format(@"^[ ]{{0}}\w+.*\;$", indent * SPACES_PER_TAB);
-            var matches = Regex.Matches(body, pattern);
-            for (int i = 0; i < matches.Count; i++)
-            {
-                var v = matches[i].Value;
-                yield return v;
-            }
-        }
-
-        protected bool IsMethod(string line)
-        {
-            var pattern = @"^[ ]*?((\w+.*\(.*\)\s?\n)|(\w+.*\(.*\)\n$))";
-            var match = Regex.Match(line, pattern);
-            return match.Length > 0;
         }
 
         protected string GetIndent(int indentLevel)
@@ -810,39 +792,79 @@ namespace CodeGenerator
             return indentLevel > 0 ? "^[ ]{" + indentLevel * SPACES_PER_TAB + "}" : "^";
         }
 
+        protected bool IsMethod(string line)
+        {
+            var pattern = @"^[ ]*?((\w+.*\(.*\)\s?\n)|(\w+.*\(.*\)\n))";
+            var match = Regex.Match(line, pattern);
+            return match.Length > 0;
+        }
+
         protected bool IsMethod(string line, int indent)
         {
-            var pattern = GetIndent(indent) + @"((\w+.*\(.*\)\s?\n)|(\w+.*\(.*\)\n?$))";
+            var pattern = GetIndent(indent) + @"((\w+.*\(.*\)\s?\n)|(\w+.*\(.*\)\n?))";
             var match = Regex.Match(line, pattern);
             return match.Success;
         }
 
+        protected bool IsAttribute(string line, int indent = 0)
+        {
+            var pattern = GetIndent(indent) + @"\[.*\]";
+            var match = Regex.Match(line, pattern);
+            return match.Success;
+        }
+
+        protected bool IsField(string line, int indent = 0)
+        {
+            var pattern = GetIndent(indent) + @"\w+\s.*;";
+            var match = Regex.Match(line, pattern);
+            return match.Success;
+        }
+
+        protected bool IsAutoProperty(string line, int indent = 0)
+        {
+            var pattern = GetIndent(indent) + @"\w+.*\{\s?(set|get);";
+            var match = Regex.Match(line, pattern);
+            return match.Success;
+        }
+
+        protected bool IsProperty(string line, int indent = 0)
+        {
+            if (IsClass(line, indent)) return false;
+            var pattern = GetIndent(indent) + @"\w+.*\w+\s*\n";
+            var match = Regex.Match(line, pattern);
+            return match.Success;
+        }
+
+        protected bool IsKeyword(string word)
+        {
+            return Regex.IsMatch(word, @"\s?(" + ALL_KEYWORDS + @")\s?");
+        }
+
+        protected bool IsPrefix(string word)
+        {
+            return Regex.IsMatch(word, @"\s?(" + PREFIXES + @")\s?");
+        }
+
+        protected bool IsProtectionKeyword(string word)
+        {
+            return Regex.IsMatch(word, @"\s?(" + PROTECTION_LEVELS + @")\s?");
+        }
+
         protected bool IsClass(string line)
         {
-            var pattern = @"\s*class\s\w+.*$";
+            var pattern = @".*\s*?class\s.*$";
             var match = Regex.Match(line, pattern);
             return match.Success;
         }
 
         protected bool IsClass(string line, int indent)
         {
-            var pattern = string.Format(@"^[ ]{{0}}\w+?\s?\w+?\s?class\s\w+.*$", indent * SPACES_PER_TAB);
+            var pattern = GetIndent(indent) + @".*\s?class\s.*$";
             var match = Regex.Match(line, pattern);
             return match.Success;
         }
 
-        protected IEnumerable<string> GetAutoProperties(int indent, string body)
-        {
-            var pattern = string.Format(@"^[ ]{{0}}\w+.*\}$", indent * SPACES_PER_TAB);
-            var matches = Regex.Matches(body, pattern);
-            for (int i = 0; i < matches.Count; i++)
-            {
-                var v = matches[i].Value;
-                yield return v;
-            }
-        }
-
-        protected IEnumerable<string> GetClosure(string body, string startPattern, int indentLevel)
+        protected IEnumerable<string> GetClosure(string body, string startLine, int indentLevel)
         {
             var indent = GetIndent(indentLevel);
             var lines = body.Split('\n');
@@ -851,7 +873,7 @@ namespace CodeGenerator
             for (int i = 0; i < lines.Length; i++)
             {
                 var line = lines[i];
-                if(Regex.IsMatch(line, startPattern))
+                if(line == startLine)
                 {
                     foundFirstLine = true;
                 }
@@ -877,12 +899,202 @@ namespace CodeGenerator
             }
         }
 
+        protected string GetClosureString(string body, string startLine, int indentLevel)
+        {
+            StringBuilder sb = new StringBuilder(body.Length);
+            var indent = GetIndent(indentLevel);
+            var lines = body.Split('\n');
+            bool opened = false, foundFirstLine = false;
+
+            for (int i = 0; i < lines.Length; i++)
+            {
+                var line = lines[i];
+                if (line == startLine)
+                {
+                    foundFirstLine = true;
+                    int p = i;
+                    if(p > 0)
+                    {
+                        var prev = lines[--p];
+                        while (IsAttribute(prev, indentLevel))
+                        {
+                            sb.Insert(0, prev + '\n');
+                            prev = lines[--p];
+                            if (p <= 0)
+                                break;
+                        }
+                    }
+                   
+                }
+                if (foundFirstLine)
+                {
+                    if (!opened)
+                    {
+                        if (Regex.IsMatch(line, indent + @"\{.*$"))
+                        {
+                            opened = true;
+                        }
+                    }
+                    else
+                    {
+                        if (Regex.IsMatch(line, indent + @"\}.*$"))
+                        {
+                            sb.AppendLine(line);
+                            break;
+                        }
+                    }
+                    sb.AppendLine(line);
+                }
+            }
+            return sb.ToString();
+        }
+
         protected string Filter(string line, string pattern, int groupIndex)
         {
             var groups = Regex.Match(line, pattern).Groups;
             if (groups.Count > groupIndex + 1)
                 return groups[groupIndex + 1].Value;
             return string.Empty;
+        }
+    }
+
+    public class FieldParser : Parser
+    {
+        public Field Parse(string line)
+        {
+            string type = null;
+            string name = null;
+            string prot = null;
+            string prefix = null;
+            line = Regex.Replace(line, @"^\s+", "");
+            var words = line.Split(' ');
+            for (int i = 0; i < words.Length; i++)
+            {
+                var word = words[i];
+                if (i < 2)
+                {
+                    if(IsProtectionKeyword(word))
+                    {
+                        prot = word;
+                    }
+                    else if (IsPrefix(word))
+                    {
+                        prefix = word;
+                    }
+                }
+            }
+            if(prot != null && prefix != null)
+            {
+                type = words[2];
+                name = words[3];
+            }
+            else
+            {
+                if (prot != null || prefix != null)
+                {
+                    int t = 1;
+                    type = words[t];
+                    name = words[t+1];
+                }
+                else
+                {
+                    type = words[0];
+                    name = words[1];
+                }
+            }
+            var filed = new Field(type, name, prot, prefix, Filter(line, @"^.*=\s?(.*);", 0));
+            return filed;
+        }
+
+        protected string GetType(string line)
+        {
+            return Filter(line, @".*?(\w+\[?,?\]?(<.*>)?)\s\w+\s?\(.*\)", 0);
+        }
+
+        protected string GetName(string line)
+        {
+            return Filter(line, @".*?(\w+\[?,?\]?(<.*>)?)\s\w+\s?\(.*\)", 0);
+        }
+    }
+
+    public class PropertyParser : Parser
+    {
+        public AutoProperty ParseAutoProp(string line)
+        {
+            string type = null;
+            string name = null;
+            string prot = null;
+            string prefix = null;
+            string setter = Filter(line, @"get;\s?(.*)\sset;\s?\}", 0);
+            line = Regex.Replace(line, @"^\s+", "");
+            var words = line.Split(' ');
+            for (int i = 0; i < words.Length; i++)
+            {
+                var word = words[i];
+                if (i < 2)
+                {
+                    if (IsProtectionKeyword(word))
+                    {
+                        prot = word;
+                    }
+                    else if (IsPrefix(word))
+                    {
+                        prefix = word;
+                    }
+                }
+            }
+            if (prot != null && prefix != null)
+            {
+                type = words[2];
+                name = words[3];
+            }
+            else
+            {
+                if (prot != null || prefix != null)
+                {
+                    int t = 1;
+                    type = words[t];
+                    name = words[t + 1];
+                }
+                else
+                {
+                    type = words[0];
+                    name = words[1];
+                }
+            }
+            var prop = new AutoProperty(type, name, prot, setter, prefix);
+            return prop;
+        }
+
+        public Property ParseProp(string body, string startLine, int indentLevel)
+        {
+            string indent = GetIndent(indentLevel);
+            var auto = ParseAutoProp(startLine);
+            string fieldName = auto.name.ToLower();
+            int lineIndex = 0;
+            var prop = new Property(auto.type, auto.name, auto.protectionLevel, fieldName, auto.prefix);
+            bool hasSetter = false;
+
+            foreach (var line in GetClosure(body, startLine, indentLevel))
+            {
+                if(lineIndex > 1)
+                {
+                    if (Regex.IsMatch(line, @"set(\s|\n)"))
+                        hasSetter = true;
+                    if (Regex.IsMatch(line, @"return\s.*;"))
+                        prop.fieldName = Filter(line, @"return\s(.*);", 0);
+                    if (!Regex.IsMatch(line, @"(return\s|set(\s|\n)|get(\s|\n))")
+                        && !Regex.IsMatch(line, GetIndent(indentLevel + 1) + @"(\{|\})"))
+                    {
+                        if (!hasSetter)
+                            prop.AddGetterBodyLine(Regex.Replace(line, indent, ""));
+                        else prop.AddSetterBodyLine(Regex.Replace(line, indent, ""));
+                    }
+                }
+                lineIndex++;
+            }
+            prop.readOnly = !hasSetter;
+            return prop;
         }
     }
 
@@ -899,11 +1111,11 @@ namespace CodeGenerator
 
     public class MethodParser : Parser
     {
-        public Method Parse(string body, string pattern, int indentLevel)
+        public Method Parse(string body, string startLine, int indentLevel)
         {
             var method = new Method();
             int lineIndex = 0;
-            foreach (var line in GetClosure(body, pattern, indentLevel))
+            foreach (var line in GetClosure(body, startLine, indentLevel))
             {
                 if (lineIndex == 0)
                 {
@@ -957,7 +1169,7 @@ namespace CodeGenerator
     {
         protected string GetName(string line)
         {
-            return Filter(line, @"^.*\sclass\s(\w+)\s", 0);
+            return Filter(line, @"^.*\s?class\s(\w+<?.*?>?)\s", 0);
         }
 
         protected IEnumerable<string> GetInheritance(string line)
@@ -974,6 +1186,17 @@ namespace CodeGenerator
             }
         }
 
+        protected IEnumerable<string> GetAutoProperties(string body, int indent)
+        {
+            var pattern = GetIndent(indent) + @"\w+.*\}$";
+            var matches = Regex.Matches(body, pattern);
+            for (int i = 0; i < matches.Count; i++)
+            {
+                var v = matches[i].Value;
+                yield return v;
+            }
+        }
+
         protected IEnumerable<string> GetSubclasses(int indent, string body)
         {
             var pattern = string.Format(@"(^\s{{0}}\w*\sclass\s\w*$)", indent * 4);
@@ -987,186 +1210,142 @@ namespace CodeGenerator
 
         public void Test()
         {
-            var body = @"using UnityEngine;
+            var body = @"
+using UnityEngine;
 using System.Collections;
 using UnityEditor;
 using CodeGenerator;
-namespace DynamicUI
+[CustomEditor(typeof(DUIPanel), true)]
+public sealed class DynamicUI<Image> : IPanel, IAss
 {
+    public float number;
+    float num;
+    public readonly string shit = ""asshole"";
+    public DUIPanel panel { get; set; }
+    public DUIPanel panel
+    {
+        get
+        { 
+            1;
+            2;
+            3;
+            return (DUIPanel) target;
+        } 
+        set 
+        { 
+            1;
+            2;
+            3;
+            target = value;
+        }
+    }
+
+    public override void OnInspectorGUI()
+    {
+        base.OnInspectorGUI();
+
+    }
+
+    void GenerateCode()
+    {
+        string[] directives = new string[] { ""UnityEngine"", ""DynamicUI"", ""UnityEngine.UI"" };
+        string[] regions = new string[] { ""Elements"" };
+        string[] inherited = new string[] { ""DUIPanel"" };
+        var file = Application.dataPath + "" / Scripts/"" + panel.name + "".cs"";
+
+        var script = System.IO.File.OpenText(file);
+
+        var parser = new ClassParser();
+        parser.Test();
+        var cls = parser.Parse(script.ReadToEnd());
+        script.Close();
+    }
+
     [CustomEditor(typeof(DUIPanel), true)]
     public class DUIPanelEditor : Editor
     {
-        public DUIPanel panel { get { return (DUIPanel) target; } }
-        public override void OnInspectorGUI()
-        {
-            base.OnInspectorGUI();
-
-        }
-
-        void GenerateCode()
-        {
-            string[] directives = new string[] { ""UnityEngine"", ""DynamicUI"", ""UnityEngine.UI"" };
-            string[] regions = new string[] { ""Elements"" };
-            string[] inherited = new string[] { ""DUIPanel"" };
-            var file = Application.dataPath + "" / Scripts/"" + panel.name + "".cs"";
-
-            var script = System.IO.File.OpenText(file);
-
-            var parser = new ClassParser();
-            parser.Test();
-            var cls = parser.Parse(script.ReadToEnd());
-            script.Close();
+        public DUIPanel panel 
+        { 
+            get { return (DUIPanel)target;  } 
         }
     }
 }
 ";
-            var method = new MethodParser().Parse(body, @"void OnInspectorGUI\(\)$?", 2);
-            Debug.Log(string.Format("{0}", method.ToString(1))); 
+            var cls = new ClassParser().Parse(body, 0);
+            Debug.Log(string.Format("{0}", cls.ToString(0)));
         }
 
-        public Class Parse(string source)
+        public Class Parse(string source, int indent = 0)
         {
             var lines = source.Split('\n');
-            string name = null;
-            string inheritance = null;
             string mainLine = null;
+            
             foreach (var line in lines)
             {
-                if (line.Contains("class"))
+                if (IsClass(line, indent))
                 {
                     mainLine = line;
                     break;
                 }
             }
-            if(mainLine != null)
-            {
-                name = GetName(mainLine);
 
+            if (mainLine != null)
+            {
+                var name = GetName(mainLine);
                 var protectionLevel = GetProtectionLevel(mainLine);
                 var prefix = GetPrefix(mainLine);
                 var cls = new Class(name, protectionLevel, prefix);
+                var methodParser = new MethodParser();
+                var fieldParser = new FieldParser();
+                var propParser = new PropertyParser();
 
+                foreach (var d in GetDirectives(source))
+                {
+                    cls.AddDirective(d);
+                }
                 foreach (var inh in GetInheritance(mainLine))
                 {
                     cls.AddInherited(inh);
                 }
-
-                foreach (var inh in GetRegions(source, 0))
+                foreach (var r in GetRegions(source, 0))
                 {
-                    cls.AddRegion(inh);
+                    cls.AddRegion(r);
                 }
-
-                if (!string.IsNullOrEmpty(inheritance))
-                {
-                    name += " : " + inheritance;
-                }
-
                 foreach (var line in lines)
                 {
-                    if (line.StartsWith("using"))
+                    if (IsMethod(line, indent + 1))
                     {
-                        var l = line;
-                        l = l.Remove(l.Length - 2, 2);
-                        var dir = l.Substring(6);
-                        cls.AddDirective(dir);
+                        cls.AddMember(methodParser.Parse(source, line, indent + 1));
+                    }
+                    else if (IsClass(line, indent + 1))
+                    {
+                        cls.AddMember(Parse(GetClosureString(source, line, indent + 1), indent + 1));
+                    }
+                    else if (IsAttribute(line, indent))
+                    {
+                        cls.AddAttribute(line);
+                    }
+                    else if (IsField(line, indent + 1))
+                    {
+                        cls.AddMember(fieldParser.Parse(line));
+                    }
+                    else if(IsProperty(line, indent + 1))
+                    {
+                        cls.AddMember(propParser.ParseProp(source, line, indent + 1));
+                    }
+                    else if(IsAutoProperty(line))
+                    {
+                        cls.AddMember(propParser.ParseAutoProp(line));
                     }
                 }
+                
                 return cls;
             }
-            Debug.LogErrorFormat("{0} - doesn't contain class! Retruning null...", source.Substring(0, 20)); 
+            Debug.LogErrorFormat("{0} - doesn't contain class! Retruning null...", source.Substring(0, 20));
             return null;
-       
-        }
-}
 
-    public class ClassBuilder
-    {
-        public List<string> lines = new List<string>();
-
-        public ClassBuilder(string file)
-        {
-            lines = new List<string>(file.Split('\n'));
         }
 
-        public void AddProperty(Property prop)
-        {
-            var propLine = GetRegionLine("Properties");
-            if (propLine >= 0)
-            {
-                lines.Insert(propLine, prop.ToString(1));
-            }
-        }
-
-        public ClassBuilder AppendLineToMethod(Method method, params string[] newLines)
-        {
-            var methodString = method.GetFirstLine();
-            int methodLineIndex = -1;
-            for (int i = 0; i < lines.Count; i++)
-            {
-                var line = lines[i];
-                if (line.Contains(methodString))
-                {
-                    methodLineIndex = i;
-                    break;
-                }
-            }
-            if(methodLineIndex >= 0)
-            {
-                var end = "";
-                while(!end.Contains("}") && methodLineIndex < lines.Count - 1)
-                {
-                    methodLineIndex++;
-                    end = lines[methodLineIndex];
-                }
-                //     methodLineIndex-=2;
-#if UNITY_EDITOR
-                UnityEngine.Debug.Log(string.Format("{0}", methodLineIndex));
-#endif
-                for (int i = 0; i < newLines.Length; i++)
-                {
-                    lines.Insert(methodLineIndex, Member.GetIndentLevel(1) + Member.WithSemicolon(newLines[i]));
-                }
-            }
-            return this;
-        }
-
-        public ClassBuilder InsertEmptyLine(int index)
-        {
-            lines.Insert(index, "\n");
-            return this;
-        }
-
-        public void AddMember(Member member, string region, int indentLevel = 1)
-        {
-            var propLine = GetRegionLine(region);
-         
-            if (propLine >= 0)
-            {
-                lines.Insert(propLine, member.ToString(indentLevel));
-            }
-        }
-
-        public override string ToString()
-        {
-            string res = string.Empty;
-            for (int i = 0; i < lines.Count; i++)
-            {
-                res += lines[i] + "\n";
-            }
-            return res;
-        }
-
-        int GetRegionLine(string name)
-        {
-            for (int i = 0; i < lines.Count; i++)
-            {
-                if (lines[i].Contains("#endregion " + name))
-                    return i - 1;    
-            }
-#if UNITY_EDITOR
-            UnityEngine.Debug.LogWarning("Region " + name + " not found in the file. Check to see if your class contains #endregion " + name + ".");
-#endif
-            return -1;
-        }
     }
+ 
 }
