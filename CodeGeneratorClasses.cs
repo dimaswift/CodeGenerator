@@ -197,7 +197,6 @@ namespace CodeGenerator
     public class Field : Member
     {
         public string defaultFieldValue;
-        public string prefix;
         public Field(string type, 
             string name,
             string protectionLevel,
@@ -552,15 +551,21 @@ namespace CodeGenerator
             return this;
         }
 
-        public Class AddMember(Member member)
+        public Class AddMember(params Member[] member)
         {
-            members.Add(member);
+            foreach (var m in member)
+            {
+                members.Add(m);
+            }
             return this;
         }
 
-        public Class AddAttribute(string attribute)
+        public Class AddAttribute(params string[] attributes)
         {
-            attributes.Add(attribute);
+            foreach (var item in attributes)
+            {
+                this.attributes.Add(item);
+            }
             return this;
         }
 
@@ -570,21 +575,30 @@ namespace CodeGenerator
             return this;
         }
 
-        public Class AddDirective(string dir)
+        public Class AddDirective(params string[] directives)
         {
-            directives.Add(dir);
+            foreach (var item in directives)
+            {
+                this.directives.Add(item);
+            }
             return this;
         }
 
-        public Class AddInherited(string inh)
+        public Class AddInherited(params string[] inh)
         {
-            inherited.Add(inh);
+            foreach (var item in inh)
+            {
+                inherited.Add(item);
+            }
             return this;
         }
 
-        public Class AddRegion(string reg)
+        public Class AddRegion(params string[] region)
         {
-            regions.Add(reg);
+            foreach (var item in region)
+            {
+                regions.Add(item);
+            }
             return this;
         }
 
@@ -815,6 +829,7 @@ namespace CodeGenerator
 
         protected bool IsField(string line, int indent = 0)
         {
+            if (IsAutoProperty(line, indent)) return false;
             var pattern = GetIndent(indent) + @"\w+\s.*;";
             var match = Regex.Match(line, pattern);
             return match.Success;
@@ -830,7 +845,7 @@ namespace CodeGenerator
         protected bool IsProperty(string line, int indent = 0)
         {
             if (IsClass(line, indent)) return false;
-            var pattern = GetIndent(indent) + @"\w+.*\w+\s*\n";
+            var pattern = GetIndent(indent) + @"\w+.*\w+\s*$";
             var match = Regex.Match(line, pattern);
             return match.Success;
         }
@@ -949,7 +964,7 @@ namespace CodeGenerator
             return sb.ToString();
         }
 
-        protected string Filter(string line, string pattern, int groupIndex)
+        public static string Filter(string line, string pattern, int groupIndex)
         {
             var groups = Regex.Match(line, pattern).Groups;
             if (groups.Count > groupIndex + 1)
@@ -1002,6 +1017,9 @@ namespace CodeGenerator
                     name = words[1];
                 }
             }
+            name = name.Trim();
+            if (name.EndsWith(";"))
+                name = name.Remove(name.Length - 1, 1);
             var filed = new Field(type, name, prot, prefix, Filter(line, @"^.*=\s?(.*);", 0));
             return filed;
         }
@@ -1208,73 +1226,6 @@ namespace CodeGenerator
             }
         }
 
-        public void Test()
-        {
-            var body = @"
-using UnityEngine;
-using System.Collections;
-using UnityEditor;
-using CodeGenerator;
-[CustomEditor(typeof(DUIPanel), true)]
-public sealed class DynamicUI<Image> : IPanel, IAss
-{
-    public float number;
-    float num;
-    public readonly string shit = ""asshole"";
-    public DUIPanel panel { get; set; }
-    public DUIPanel panel
-    {
-        get
-        { 
-            1;
-            2;
-            3;
-            return (DUIPanel) target;
-        } 
-        set 
-        { 
-            1;
-            2;
-            3;
-            target = value;
-        }
-    }
-
-    public override void OnInspectorGUI()
-    {
-        base.OnInspectorGUI();
-
-    }
-
-    void GenerateCode()
-    {
-        string[] directives = new string[] { ""UnityEngine"", ""DynamicUI"", ""UnityEngine.UI"" };
-        string[] regions = new string[] { ""Elements"" };
-        string[] inherited = new string[] { ""DUIPanel"" };
-        var file = Application.dataPath + "" / Scripts/"" + panel.name + "".cs"";
-
-        var script = System.IO.File.OpenText(file);
-
-        var parser = new ClassParser();
-        parser.Test();
-        var cls = parser.Parse(script.ReadToEnd());
-        script.Close();
-    }
-
-    [CustomEditor(typeof(DUIPanel), true)]
-    public class DUIPanelEditor : Editor
-    {
-        public DUIPanel panel 
-        { 
-            get { return (DUIPanel)target;  } 
-        }
-    }
-}
-";
-            var cls = new ClassParser().Parse(body, 0);
-            Debug.Log(string.Format("{0}", cls.ToString(0)));
-        }
-
         public Class Parse(string source, int indent = 0)
         {
             var lines = source.Split('\n');
@@ -1333,7 +1284,7 @@ public sealed class DynamicUI<Image> : IPanel, IAss
                     {
                         cls.AddMember(propParser.ParseProp(source, line, indent + 1));
                     }
-                    else if(IsAutoProperty(line))
+                    else if(IsAutoProperty(line, indent + 1))
                     {
                         cls.AddMember(propParser.ParseAutoProp(line));
                     }
