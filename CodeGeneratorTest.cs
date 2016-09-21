@@ -11,13 +11,8 @@ public class CodeGeneratorTest : MonoBehaviour
 
     void GenerateCode()
     {
-        string[] directives = new string[] { "UnityEngine", "DynamicUI", "UnityEngine.UI" };
-        string[] regions = new string[] { "Elements" };
-        string[] inherited = new string[] { "DUIPanel" };
 
-        var script = System.IO.File.CreateText(Application.dataPath + "/Scripts/" + name + ".cs");
-      
-      //  script.Write(cls.ToString(0));
-        script.Close();
+        Debug.Log(string.Format("{0}", new Method("void", "Ass").AddAttributes("Attr1", "attr2").ToString(1))); 
+   
     }
 }

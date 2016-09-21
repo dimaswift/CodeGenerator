@@ -6,13 +6,17 @@ namespace CodeGenerator
 {
     public abstract class Member
     {
-        public string protectionLevel = "";
-        public string type;
-        public string name;
-        public string parentRegion;
-        public string prefix;
+        public string protectionLevel { get; set; }
+        public string type { get; set; }
+        public string name { get; set; }
+        public string parentRegion { get; set; }
+        public string prefix { get; set; }
 
-        public Member(string type, string name, string protectionLevel = "", string parentRegion = "")
+        protected List<string> m_attributes = new List<string>();
+
+        public List<string> attributes { get { return m_attributes; } }
+
+        protected Member(string type, string name, string protectionLevel = "", string parentRegion = "")
         {
             this.protectionLevel = protectionLevel;
             this.type = type;
@@ -20,12 +24,26 @@ namespace CodeGenerator
             this.parentRegion = parentRegion;
         }
 
-        public const string INDENT_0 = "";
-        public const string INDENT_1 = "    ";
-        public const string INDENT_2 = "        ";
-        public const string INDENT_3 = "            ";
+        const string INDENT_0 = "";
+        const string INDENT_1 = "    ";
+        const string INDENT_2 = "        ";
+        const string INDENT_3 = "            ";
 
-        public static string GetIndentLevel(int level)
+        public virtual string ToString(int indentLevel)
+        {
+            return GetIndentLevel(indentLevel) + ToString();
+        }
+
+        protected static string WithSemicolon(string value)
+        {
+            return value.Contains(";")
+                || value == @"\n"
+                || value == " "
+                || value.Length < 2
+                ? value : value + ";";
+        }
+
+        protected string GetIndentLevel(int level)
         {
             switch (level)
             {
@@ -42,39 +60,45 @@ namespace CodeGenerator
             }
         }
 
-        public string GetProtectionLevel()
+        protected string GetProtectionLevel()
         {
             return string.IsNullOrEmpty(protectionLevel) ? "" : protectionLevel + " ";
         }
 
-        public virtual string ToString(int indentLevel)
-        {
-            return GetIndentLevel(indentLevel) + ToString();
-        }
-
         protected string GetName()
         {
-            return Regex.Replace(name, @"[\s*\(\)]", "");
+            return Regex.Replace(name, @"[\s*\(\)\[\]-]", "");
         }
 
-        public static string WithSemicolon(string value)
+        protected string GetPrefix()
         {
-            return value.Contains(";") 
-                || value == @"\n" 
-                || value == " " 
-                || value.Length < 2
-                ? value : value + ";";
+            return string.IsNullOrEmpty(prefix) ? "" : prefix + " ";
         }
 
+        protected string GetAttributes(int indentLevel)
+        {
+            string atrbs = string.Empty;
+            if (m_attributes.Count == 0)
+                return atrbs;
+            string indent = GetIndentLevel(indentLevel);
+            foreach (var a in m_attributes)
+            {
+                atrbs += string.Format("{0}[{1}]", indent, a);
+                atrbs += '\n';
+            }
+            return atrbs;
+        }
     }
-
-
 
     public class Method : Member
     {
-        List<Parameter> parameters;
-        List<string> lines;
-        public string returnValue;
+        List<Parameter> m_parameters;
+        List<string> m_lines;
+        string m_returnValue;
+
+        public List<Parameter> parameters { get { return m_parameters; } }
+        public List<string> lines { get { return m_lines; } }
+        public string returnValue { get { return m_returnValue; } }
 
         public Method(string type,
             string name,
@@ -85,9 +109,9 @@ namespace CodeGenerator
             base(type, name, protectionLevel, region)
         {
             this.prefix = prefix;
-            this.parameters = new List<Parameter>(parameters);
-            this.returnValue = type == "void" ? "" : string.Format("default({0});", type);
-            lines = new List<string>();
+            this.m_parameters = new List<Parameter>(parameters);
+            this.m_returnValue = type == "void" ? "" : string.Format("default({0});", type);
+            m_lines = new List<string>();
         }
 
         public Method( string type, 
@@ -128,34 +152,36 @@ namespace CodeGenerator
             }
         }
 
-        public Method AddReturnValue(string returnValue)
+        public Method SetReturnValue(string returnValue)
         {
-            this.returnValue = WithSemicolon(returnValue);
+            this.m_returnValue = WithSemicolon(returnValue);
             return this;
         }
 
-        public string GetParams()
+        public Method AddAttributes(params string[] attributes)
         {
-            string res = "";
-            for (int i = 0; i < parameters.Count; i++)
+            foreach (var a in attributes)
             {
-                res += parameters[i].ToString();
-                if (i < parameters.Count - 1)
-                    res += ", ";
-                   
+               this.m_attributes.Add(a);
             }
-            return res;
-        }
-
-        public Method AddParameter(Parameter parameter)
-        {
-            parameters.Add(parameter);
             return this;
         }
 
-        public Method AddLine(string line)
+        public Method AddParameters(params Parameter[] parameter)
         {
-            lines.Add(WithSemicolon(line));
+            foreach (var p in m_parameters)
+            {
+                this.m_parameters.Add(p);
+            }
+            return this;
+        }
+
+        public Method AddLine(params string[] lines)
+        {
+            foreach (var l in lines)
+            {
+                this.m_lines.Add(WithSemicolon(l));
+            }
             return this;
         }
 
@@ -163,34 +189,6 @@ namespace CodeGenerator
         {
             this.prefix = prefix;
             return this;
-        }
-
-        string GetPrefix()
-        {
-            return string.IsNullOrEmpty(prefix) ? "" : prefix + " ";
-        }
-
-        public string GetFirstLine()
-        {
-            return string.Format("{0}{4}{1} {2} ({3})",
-                GetProtectionLevel(), 
-                type, 
-                GetName(), 
-                GetParams(),
-                GetPrefix());
-        }
-
-        string GetBody(string indent)
-        {
-            string body = "";
-            for (int i = 0; i < lines.Count; i++)
-            {
-                body += indent + lines[i];
-                if (i < lines.Count - 1)
-                    body += indent + "\n";
-            }
-            body += returnValue.Length > 0 ? "\n" + indent + "return " + returnValue : "";
-            return body;
         }
 
         public override string ToString()
@@ -201,21 +199,51 @@ namespace CodeGenerator
         public override string ToString(int indentLevel)
         {
             var indent = GetIndentLevel(indentLevel);
-            return string.Format("{4}{0}{6}{1} {2} ({3})\n{4}{{\n{5}\n{4}}}",
-                GetProtectionLevel(), 
+            return string.Format("{7}{4}{0}{6}{1} {2} ({3})\n{4}{{\n{5}\n{4}}}",
+                GetProtectionLevel(),
                 type,
-                GetName(), 
-                GetParams(), 
-                indent, 
-                GetBody(indent + INDENT_1),
-                GetPrefix());
+                GetName(),
+                GetParams(),
+                indent,
+                GetBody(indentLevel + 1),
+                GetPrefix(),
+                GetAttributes(indentLevel));
+        }
+
+        string GetParams()
+        {
+            string res = "";
+            for (int i = 0; i < m_parameters.Count; i++)
+            {
+                res += m_parameters[i].ToString();
+                if (i < m_parameters.Count - 1)
+                    res += ", ";
+                   
+            }
+            return res;
+        }
+
+        string GetBody(int indentLevel)
+        {
+            var indent = GetIndentLevel(indentLevel);
+            string body = "";
+            for (int i = 0; i < m_lines.Count; i++)
+            {
+                body += indent + m_lines[i];
+                if (i < m_lines.Count - 1)
+                    body += indent + "\n";
+            }
+            body += m_returnValue.Length > 0 ? "\n" + indent + "return " + m_returnValue : "";
+            return body;
         }
     }
 
     public class Field : Member
     {
-        public string defaultFieldValue;
-        List<string> attributes = new List<string>(); 
+        string m_defaultFieldValue;
+
+        public string defaultFieldValue { get { return m_defaultFieldValue; } }
+
         public Field(string type, 
             string name,
             string protectionLevel,
@@ -227,10 +255,11 @@ namespace CodeGenerator
             this.prefix = prefix;
             if (!string.IsNullOrEmpty(defaultFieldValue))
             {
-                this.defaultFieldValue = defaultFieldValue.Contains("=") ?
+                this.m_defaultFieldValue = defaultFieldValue.Contains("=") ?
                     defaultFieldValue : string.Format(" = {0}", defaultFieldValue);
             }
         }
+
         public Field(string type,
             string name,
             string protectionLevel,
@@ -251,16 +280,11 @@ namespace CodeGenerator
             this(null, null, null, null, null, "Fields")
         { }
 
-        string GetPrefix()
-        {
-            return string.IsNullOrEmpty(prefix) ? "" : prefix + " ";
-        }
-
-        public Field AddAttribute(params string[] attrbs)
+        public Field AddAttributes(params string[] attrbs)
         {
             foreach (var a in attrbs)
             {
-                attributes.Add(a);
+                m_attributes.Add(a);
             }
             return this;
         }
@@ -270,20 +294,6 @@ namespace CodeGenerator
             return ToString(0);
         }
 
-        string GetAttributes(int indentLevel)
-        {
-            string atrbs = string.Empty;
-            if (attributes.Count == 0)
-                return atrbs;
-            string indent = GetIndentLevel(indentLevel);
-            foreach (var a in attributes)
-            {
-                atrbs += string.Format("{0}[{1}]", indent, a);
-                atrbs += '\n';
-            }
-            return atrbs;
-        }
-
         public override string ToString(int indent)
         {
             return string.Format(@"{6}{3}{0}{5}{1} {2}{4};",
@@ -291,81 +301,17 @@ namespace CodeGenerator
                 type,
                 GetName(),
                 GetIndentLevel(indent),
-                defaultFieldValue,
+                m_defaultFieldValue,
                 GetPrefix(),
                 GetAttributes(indent));
         }
     }
 
-    public class FieldPropertyPair : Property
-    {
-        public string defaultFieldValue;
-        public FieldPropertyPair(string type,
-            string name,
-            string protectionLevel,
-            string defaultFieldValue,
-            string prefix,
-            string setterProtection,
-            string region = "Properties") : 
-            base(type, name, protectionLevel, "m_" + name.ToLower(), prefix, setterProtection, region)
-        {
-            if(!string.IsNullOrEmpty(defaultFieldValue))
-            {
-                this.defaultFieldValue = string.Format(" = {0}", defaultFieldValue);
-            }
-        }
-
-        public FieldPropertyPair(string type,
-            string name,
-            string protectionLevel,
-            string defaultFieldValue,
-            string prefix) :
-            this(type, name, protectionLevel, defaultFieldValue, prefix, null)  { }
-
-        public FieldPropertyPair(string type,
-            string name,
-            string protectionLevel,
-            string defaultFieldValue) :
-            this(type, name, protectionLevel, defaultFieldValue, null, null) { }
-
-        public FieldPropertyPair(string type,
-            string name) :
-            this(type, name, null, null)   { }
-
-        string GetFieldName()
-        {
-            return Regex.Replace(fieldName, @"[\s*\(\)]", "");
-        }
-
-        public override string ToString(int indentLevel)
-        {
-            var indent = GetIndentLevel(indentLevel);
-            return string.Format(@"{5}{4}{1} {3}{6};
-{5}{0}{6}{1} {2} 
-{5}{{ 
-    {5}get 
-    {5}{{
-        {5}return {3};
-    {5}}}
-    {5}{4}set 
-    {5}{{
-        {5}{3} = value;
-    {5}}}
-{5}}}"
-            , GetProtectionLevel(),
-            type,
-            GetName(),
-            GetFieldName(),
-            GetSetter(),
-            indent,
-            defaultFieldValue,
-            GetPrefix());
-        }
-    }
-
     public class AutoProperty : Member
     {
-        public string setterProtection;
+        protected string m_setterProtection;
+
+        public string setterProtection { get { return m_setterProtection; } }
 
         public AutoProperty(string type, 
             string name,
@@ -377,7 +323,7 @@ namespace CodeGenerator
             base(type, name, protectionLevel, region)
         {
             this.prefix = prefix;
-            this.setterProtection = setterProtection;
+            this.m_setterProtection = setterProtection;
         }
 
         public AutoProperty(string type,
@@ -399,9 +345,13 @@ namespace CodeGenerator
 
         }
 
-        protected string GetPrefix()
+        public AutoProperty AddAttributes(params string[] attrbs)
         {
-            return string.IsNullOrEmpty(prefix) ? "" : prefix + " ";
+            foreach (var a in attrbs)
+            {
+                m_attributes.Add(a);
+            }
+            return this;
         }
 
         public override string ToString()
@@ -409,29 +359,36 @@ namespace CodeGenerator
             return ToString(0);
         }
 
-        protected string GetSetter()
-        {
-            return string.IsNullOrEmpty(setterProtection) ? "" : setterProtection + " ";
-        }
-
         public override string ToString(int indent)
         {
-            return string.Format("{4}{0}{5}{1} {2} {{ get; {3}set; }}",
+            return string.Format("{6}{4}{0}{5}{1} {2} {{ get; {3}set; }}",
                 GetProtectionLevel(),
                 type,
                 GetName(),
-                 GetSetter(), 
+                GetSetter(),
                 GetIndentLevel(indent),
-                GetPrefix());
+                GetPrefix(),
+                GetAttributes(indent));
+        }
+
+        protected string GetSetter()
+        {
+            return string.IsNullOrEmpty(m_setterProtection) ? "" : m_setterProtection + " ";
         }
     }
 
     public class Property : AutoProperty
     {
-        public string fieldName;
-        public bool readOnly;
-        List<string> setterBody = new List<string>();
-        List<string> getterBody = new List<string>();
+        string m_fieldName;
+        bool m_readOnly;
+        List<string> m_setterBody = new List<string>();
+        List<string> m_getterBody = new List<string>();
+   
+        public string fieldName { get { return m_fieldName; } }
+        public bool readOnly { get { return m_readOnly; } }
+        public List<string> getterBody { get { return m_getterBody; } }
+        public List<string> setterBody { get { return m_setterBody; } }
+
         public Property(string type,
             string name,
             string protectionLevel,
@@ -441,7 +398,7 @@ namespace CodeGenerator
             string region) : 
             base(type, name, protectionLevel, setterProtection, prefix, region)
         {
-            this.fieldName = string.IsNullOrEmpty(fieldName) ? "m_" + name.ToLower() : fieldName;
+            this.m_fieldName = string.IsNullOrEmpty(fieldName) ? "m_" + name.ToLower() : fieldName;
         }
 
         public Property(string type,
@@ -472,28 +429,72 @@ namespace CodeGenerator
 
         public Property AddSetterBodyLine(string line)
         {
-            setterBody.Add(line);
+            m_setterBody.Add(line);
+            return this;
+        }
+
+        public Property SetFieldName(string fieldName)
+        {
+            this.m_fieldName = fieldName;
             return this;
         }
 
         public Property AddGetterBodyLine(string line)
         {
-            getterBody.Add(line);
+            m_getterBody.Add(line);
             return this;
         }
 
         public Property SetReadonly(bool ro)
         {
-            readOnly = ro;
+            m_readOnly = ro;
             return this;
+        }
+
+        new public Property AddAttributes(params string[] attrbs)
+        {
+            foreach (var a in attrbs)
+            {
+                m_attributes.Add(a);
+            }
+            return this;
+        }
+
+        public override string ToString(int indentLevel)
+        {
+            var indent = GetIndentLevel(indentLevel);
+            return m_readOnly ? string.Format(
+                GetFormat(),
+                GetProtectionLevel(),
+                type,
+                GetName(),
+                GetFieldName(),
+                GetSetter(),
+                indent,
+                GetPrefix(),
+                GetSetterBody(indentLevel),
+                GetAttributes(indentLevel))
+            :
+            string.Format(
+                GetFormat(),
+                GetProtectionLevel(),
+                type,
+                GetName(),
+                GetFieldName(),
+                GetSetter(),
+                indent,
+                GetPrefix(),
+                GetGetterBody(indentLevel),
+                GetSetterBody(indentLevel),
+                GetAttributes(indentLevel));
         }
 
         protected string GetSetterBody(int indentLevel)
         {
-            if (setterBody.Count == 0) return string.Empty;
-            StringBuilder s = new StringBuilder(setterBody.Count);
+            if (m_setterBody.Count == 0) return string.Empty;
+            StringBuilder s = new StringBuilder(m_setterBody.Count);
             s.AppendLine();
-            foreach (var line in setterBody)
+            foreach (var line in m_setterBody)
             {
                 s.Append(GetIndentLevel(indentLevel));
                 s.AppendLine(line);
@@ -503,10 +504,10 @@ namespace CodeGenerator
 
         protected string GetGetterBody(int indentLevel)
         {
-            if (getterBody.Count == 0) return string.Empty;
-            StringBuilder s = new StringBuilder(getterBody.Count);
+            if (m_getterBody.Count == 0) return string.Empty;
+            StringBuilder s = new StringBuilder(m_getterBody.Count);
             s.AppendLine();
-            foreach (var line in getterBody)
+            foreach (var line in m_getterBody)
             {
                 s.Append(GetIndentLevel(indentLevel));
                 s.AppendLine(line);
@@ -516,13 +517,13 @@ namespace CodeGenerator
 
         string GetFieldName()
         {
-            return Regex.Replace(fieldName, @"[\s*\(\)]", "");
+            return Regex.Replace(m_fieldName, @"[\s*\(\)]", "");
         }
 
         string GetFormat()
         {
-            return readOnly ?
-                @"{5}{0}{6}{1} {2} 
+            return m_readOnly ?
+@"{8}{5}{0}{6}{1} {2} 
 {5}{{ 
     {5}get 
     {5}{{{7}
@@ -530,7 +531,7 @@ namespace CodeGenerator
     {5}}}
 {5}}}"
 :
-@"{5}{0}{6}{1} {2} 
+@"{9}{5}{0}{6}{1} {2} 
 {5}{{ 
     {5}get 
     {5}{{{7}
@@ -543,33 +544,6 @@ namespace CodeGenerator
 {5}}}";
 
         }
-
-        public override string ToString(int indentLevel)
-        {
-            var indent = GetIndentLevel(indentLevel);
-            return readOnly ? string.Format(
-                GetFormat()
-                ,GetProtectionLevel(),
-                type,
-                GetName(), 
-                GetFieldName(),
-                GetSetter(),
-                indent,
-                GetPrefix(),
-                GetSetterBody(indentLevel)) 
-            :
-            string.Format(
-                GetFormat()
-                , GetProtectionLevel(),
-                type,
-                GetName(),
-                GetFieldName(),
-                GetSetter(),
-                indent,
-                GetPrefix(),
-                GetGetterBody(indentLevel),
-                GetSetterBody(indentLevel));
-        }
     }
 
     public class Class : Member
@@ -577,19 +551,19 @@ namespace CodeGenerator
         List<string> m_directives = new List<string>();
         List<string> m_regions = new List<string>();
         List<string> m_inherited = new List<string>();
-        List<string> m_attributes = new List<string>();
         List<Member> m_members = new List<Member>();
 
         const string REGION = "#region ";
         const string ENDREGION = "#endregion ";
-        const string OPEN_PARENTESIS = "{";
-        const string CLOSE_PARENTESIS = "}";
 
-        string indent;
-        int indentLevel;
-        int builderCapacity = 10000;
+        string m_indent;
+        int m_indentLevel;
+        int m_builderCapacity = 10000;
 
         public List<Member> members { get { return m_members; } }
+        public List<string> directives { get { return m_directives; } }
+        public List<string> regions { get { return m_regions; } }
+        public List<string> inherited { get { return m_inherited; } }
 
         public Class(string name) : base("class", name)
         { 
@@ -605,12 +579,12 @@ namespace CodeGenerator
         public Class(string name, string protectionLevel, string prefix) :
             this(name, protectionLevel)
         {
-            SetPrefix(prefix);
+            this.prefix = prefix;
         }
 
         public Class SetIndentLevel(int indentLevel)
         {
-            this.indentLevel = indentLevel;
+            this.m_indentLevel = indentLevel;
             return this;
         }
 
@@ -635,6 +609,12 @@ namespace CodeGenerator
         public Class SetPrefix(string prefix)
         {
             this.prefix = prefix;
+            return this;
+        }
+
+        public Class SetParentRegion(string parentRegion)
+        {
+            this.parentRegion = parentRegion;
             return this;
         }
 
@@ -667,14 +647,14 @@ namespace CodeGenerator
 
         public void SetBuilderCapaciy(int cap)
         {
-            builderCapacity = cap;
+            m_builderCapacity = cap;
         }
 
         public override string ToString(int indentLevel)
         {
-            this.indentLevel = indentLevel;
+            this.m_indentLevel = indentLevel;
             StringBuilder builder = new StringBuilder(10000);
-            indent = GetIndentLevel(indentLevel);
+            m_indent = GetIndentLevel(indentLevel);
             AppendDirectives(builder);
             builder.AppendLine();
             AppentAttributes(builder);
@@ -698,7 +678,7 @@ namespace CodeGenerator
             {
                 foreach (var dir in m_directives)
                 {
-                    builder.Append(indent);
+                    builder.Append(m_indent);
                     builder.AppendLine("using " + dir + ";");
                 }
             }
@@ -725,7 +705,7 @@ namespace CodeGenerator
         {
             foreach (var at in m_attributes)
             {
-                builder.Append(GetIndentLevel(indentLevel));
+                builder.Append(GetIndentLevel(m_indentLevel));
                 if (!at.Contains("["))
                 {
                     builder.Append("[");
@@ -739,7 +719,7 @@ namespace CodeGenerator
 
         StringBuilder AppendClassName(StringBuilder builder)
         {
-            builder.Append(indent);
+            builder.Append(m_indent);
             var p = prefix;
             if (!string.IsNullOrEmpty(p))
                 p += " ";
@@ -749,7 +729,7 @@ namespace CodeGenerator
 
         StringBuilder AppendOpenBracket(StringBuilder builder)
         {
-            builder.Append(indent);
+            builder.Append(m_indent);
             builder.Append("{");
             builder.AppendLine();
             return builder;
@@ -757,7 +737,7 @@ namespace CodeGenerator
 
         StringBuilder AppendCloseBracket(StringBuilder builder)
         {
-            builder.Append(indent);
+            builder.Append(m_indent);
             builder.Append("}");
             builder.AppendLine();
             return builder;
@@ -767,7 +747,7 @@ namespace CodeGenerator
         {
             if (m_regions != null && m_regions.Count > 0)
             {
-                var nextIndent = GetIndentLevel(indentLevel + 1);
+                var nextIndent = GetIndentLevel(m_indentLevel + 1);
                 bool appendedMemberWithNoRegions = false;
                 foreach (var member in members)
                 {
@@ -782,7 +762,7 @@ namespace CodeGenerator
                     if(!hasRegion)
                     {
                         appendedMemberWithNoRegions = true;
-                        builder.AppendLine(member.ToString(indentLevel + 1));
+                        builder.AppendLine(member.ToString(m_indentLevel + 1));
                     }
                 }
                 if(appendedMemberWithNoRegions)
@@ -797,7 +777,7 @@ namespace CodeGenerator
                     {
                         if (member.parentRegion == reg)
                         {
-                            builder.AppendLine(member.ToString(indentLevel + 1));
+                            builder.AppendLine(member.ToString(m_indentLevel + 1));
                         }
                     }
                     builder.AppendLine();
@@ -813,20 +793,19 @@ namespace CodeGenerator
                     builder.AppendLine();
                 foreach (var member in members)
                 {
-                    builder.AppendLine(member.ToString(indentLevel + 1));
+                    builder.AppendLine(member.ToString(m_indentLevel + 1));
                 }
             }
             return builder;
         }
-
     }
 
     public class Parser
     {
-        public const int SPACES_PER_TAB = 4;
-        public const string ALL_KEYWORDS = "const|event|delegate|public|static|class|private|protected|sealed|abstract|partial|set|get|override|readonly";
-        public const string PREFIXES = "const|sealed|virtual|abstract|internal|static|override|readonly|delegate|event";
-        public const string PROTECTION_LEVELS = "public|private|protected|internal";
+        protected const int SPACES_PER_TAB = 4;
+        protected const string ALL_KEYWORDS = "const|event|delegate|public|static|class|private|protected|sealed|abstract|partial|set|get|override|readonly";
+        protected const string PREFIXES = "const|sealed|virtual|abstract|internal|static|override|readonly|delegate|event";
+        protected const string PROTECTION_LEVELS = "public|private|protected|internal";
 
         protected string GetProtectionLevel(string line)
         {
@@ -1163,7 +1142,7 @@ namespace CodeGenerator
                     if (Regex.IsMatch(line, @"set(\s|\n)"))
                         hasSetter = true;
                     if (Regex.IsMatch(line, @"return\s.*;"))
-                        prop.fieldName = Filter(line, @"return\s(.*);", 0);
+                        prop.SetFieldName(Filter(line, @"return\s(.*);", 0));
                     if (!Regex.IsMatch(line, @"(return\s|set(\s|\n)|get(\s|\n))")
                         && !Regex.IsMatch(line, GetIndent(indentLevel + 1) + @"(\{|\})"))
                     {
@@ -1174,7 +1153,7 @@ namespace CodeGenerator
                 }
                 lineIndex++;
             }
-            prop.readOnly = !hasSetter;
+            prop.SetReadonly(!hasSetter);
             return prop;
         }
     }
@@ -1204,11 +1183,11 @@ namespace CodeGenerator
                     method.type = GetType(line);
                     method.protectionLevel = GetProtectionLevel(line);
                     method.prefix = GetPrefix(line);
-                    method.AddReturnValue(GetReturnValue(line));
+                    method.SetReturnValue(GetReturnValue(line));
                     foreach (var p in GetParameters(line))
                     {
                         var parameter = new MethodParameterParser().Parse(p);
-                        method.AddParameter(parameter);
+                        method.AddParameters(parameter);
                     }
                 }
                 else
@@ -1325,11 +1304,18 @@ namespace CodeGenerator
                 {
                     cls.AddRegion(r);
                 }
+                List<string> attributes = new List<string>(3);
                 foreach (var line in lines)
                 {
                     if (IsMethod(line, indent + 1))
                     {
-                        cls.AddMember(methodParser.Parse(source, line, indent + 1));
+                        var method = methodParser.Parse(source, line, indent + 1);
+                        if (attributes.Count > 0)
+                        {
+                            method.AddAttributes(attributes.ToArray());
+                            attributes.Clear();
+                        }
+                        cls.AddMember(method);
                     }
                     else if (IsClass(line, indent + 1))
                     {
@@ -1337,19 +1323,41 @@ namespace CodeGenerator
                     }
                     else if (IsAttribute(line, indent))
                     {
-                        cls.AddAttribute(line);
+                        cls.AddAttribute(Regex.Replace(line, @"\s*[\[\]]", ""));
+                    }
+                    else if (IsAttribute(line, indent + 1))
+                    {
+                        attributes.Add(Regex.Replace(line, @"\s*[\[\]]", ""));
                     }
                     else if (IsField(line, indent + 1))
                     {
-                        cls.AddMember(fieldParser.Parse(line));
+                        var field = fieldParser.Parse(line);
+                        if(attributes.Count > 0)
+                        {
+                            field.AddAttributes(attributes.ToArray());
+                            attributes.Clear();
+                        }
+                        cls.AddMember(field);
                     }
                     else if(IsProperty(line, indent + 1))
                     {
-                        cls.AddMember(propParser.ParseProp(source, line, indent + 1));
+                        var prop = propParser.ParseProp(source, line, indent + 1);
+                        if (attributes.Count > 0)
+                        {
+                            prop.AddAttributes(attributes.ToArray());
+                            attributes.Clear();
+                        }
+                        cls.AddMember(prop);
                     }
                     else if(IsAutoProperty(line, indent + 1))
                     {
-                        cls.AddMember(propParser.ParseAutoProp(line));
+                        var prop = propParser.ParseAutoProp(line);
+                        if (attributes.Count > 0)
+                        {
+                            prop.AddAttributes(attributes.ToArray());
+                            attributes.Clear();
+                        }
+                        cls.AddMember(prop);
                     }
                 }
                 
