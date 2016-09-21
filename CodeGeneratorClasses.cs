@@ -653,7 +653,7 @@ namespace CodeGenerator
         public override string ToString(int indentLevel)
         {
             this.m_indentLevel = indentLevel;
-            StringBuilder builder = new StringBuilder(10000);
+            StringBuilder builder = new StringBuilder(m_builderCapacity);
             m_indent = GetIndentLevel(indentLevel);
             AppendDirectives(builder);
             builder.AppendLine();
