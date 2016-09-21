@@ -459,7 +459,7 @@ namespace CodeGenerator
                 var v = matches[i].Value;
                 yield return v;
             }
-        }
+        } 
 
         protected IEnumerable<string> GetSubclasses(int indent, string body)
         {
@@ -564,7 +564,6 @@ namespace CodeGenerator
                         cls.AddMember(prop);
                     }
                 }
-
                 return cls;
             }
             return null;
