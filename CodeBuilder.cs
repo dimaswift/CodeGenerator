@@ -169,7 +169,7 @@ namespace CodeGenerator
 
         public Method AddParameters(params Parameter[] parameter)
         {
-            foreach (var p in m_parameters)
+            foreach (var p in parameter)
             {
                 this.m_parameters.Add(p);
             }
