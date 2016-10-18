@@ -34,6 +34,11 @@ namespace CodeGenerator
             return GetIndentLevel(indentLevel) + ToString();
         }
 
+        public static string RemoveNewLines(string str)
+        {
+            return Regex.Replace(str, @"\t|\n|\r", "");
+        }
+
         protected static string WithSemicolon(string value)
         {
             return value.Contains(";")
@@ -83,7 +88,8 @@ namespace CodeGenerator
             string indent = GetIndentLevel(indentLevel);
             foreach (var a in m_attributes)
             {
-                atrbs += string.Format("{0}[{1}]", indent, a);
+                var atr = RemoveNewLines(a);
+                atrbs += string.Format("{0}[{1}]", indent, atr);
                 atrbs += '\n';
             }
             return atrbs;
@@ -199,7 +205,7 @@ namespace CodeGenerator
         public override string ToString(int indentLevel)
         {
             var indent = GetIndentLevel(indentLevel);
-            return string.Format("{7}{4}{0}{6}{1} {2} ({3})\n{4}{{\n{5}\n{4}}}",
+            return string.Format("{7}{4}{0}{6}{1} {2}({3})\n{4}{{\n{5}\n{4}}}",
                 GetProtectionLevel(),
                 type,
                 GetName(),
@@ -229,9 +235,10 @@ namespace CodeGenerator
             string body = "";
             for (int i = 0; i < m_lines.Count; i++)
             {
-                body += indent + m_lines[i];
+                var line = RemoveNewLines(m_lines[i]);
+                body += indent + line;
                 if (i < m_lines.Count - 1)
-                    body += indent + "\n";
+                    body += "\n";
             }
             body += m_returnValue.Length > 0 ? "\n" + indent + "return " + m_returnValue : "";
             return body;
@@ -705,14 +712,15 @@ namespace CodeGenerator
         {
             foreach (var at in m_attributes)
             {
+                var a = RemoveNewLines(at);
                 builder.Append(GetIndentLevel(m_indentLevel));
-                if (!at.Contains("["))
+                if (!a.Contains("["))
                 {
                     builder.Append("[");
-                    builder.Append(at);
+                    builder.Append(a);
                     builder.Append("]\n");
                 } 
-                else builder.AppendLine(at);
+                else builder.AppendLine(a);
             }
             return builder;
         }
@@ -794,6 +802,7 @@ namespace CodeGenerator
                 foreach (var member in members)
                 {
                     builder.AppendLine(member.ToString(m_indentLevel + 1));
+                    builder.AppendLine();
                 }
             }
             return builder;

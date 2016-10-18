@@ -34,6 +34,7 @@ namespace CodeGenerator
             }
         }
 
+
         protected IEnumerable<string> GetDirectives(string body)
         {
             var pattern = @"using\s(.*);";
@@ -421,7 +422,7 @@ namespace CodeGenerator
 
         protected IEnumerable<string> GetParameters(string line)
         {
-            var pattern = @".*\s\w+\s\((.*)\)";
+            var pattern = @".*\s\w+\s*\((.*)\)";
             foreach (var p in Filter(line, pattern, 0).Split(','))
             {
                 yield return Regex.Replace(p, @"^\s", "");
@@ -527,11 +528,13 @@ namespace CodeGenerator
                     }
                     else if (IsAttribute(line, indent))
                     {
-                        cls.AddAttribute(Regex.Replace(line, @"\s*[\[\]]", ""));
+                        var a = Regex.Replace(line, @"\s*[\[\]]", "");
+                        cls.AddAttribute(a);
                     }
                     else if (IsAttribute(line, indent + 1))
                     {
-                        attributes.Add(Regex.Replace(line, @"\s*[\[\]]", ""));
+                        var a = Regex.Replace(line, @"\s*[\[\]]", "");
+                        attributes.Add(a);
                     }
                     else if (IsField(line, indent + 1))
                     {
