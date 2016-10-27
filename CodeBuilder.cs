@@ -154,6 +154,7 @@ namespace CodeGenerator
 
             public override string ToString()
             {
+                if (string.IsNullOrEmpty(name)) return "";
                 return string.Format("{0} {1}{2}", type, name, defaultValue);
             }
         }
@@ -218,6 +219,7 @@ namespace CodeGenerator
 
         string GetParams()
         {
+            if (parameters.Count == 0) return "";
             string res = "";
             for (int i = 0; i < m_parameters.Count; i++)
             {
@@ -271,20 +273,20 @@ namespace CodeGenerator
             string name,
             string protectionLevel,
             string prefix) :
-            this(type, name, protectionLevel, prefix, null, "Fields")
+            this(type, name, protectionLevel, prefix, "", "Fields")
         { }
 
         public Field(string type,
            string name,
            string protectionLevel) :
-           this(type, name, protectionLevel, null, null, "Fields") { }
+           this(type, name, protectionLevel, "", "", "Fields") { }
 
         public Field(string type,
            string name) :
-           this(type, name, null, null, null, "Fields")  { }
+           this(type, name, "", "", "", "Fields")  { }
 
         public Field() :
-            this(null, null, null, null, null, "Fields")
+            this("", "", "", "", "", "Fields")
         { }
 
         public Field AddAttributes(params string[] attrbs)
@@ -384,10 +386,27 @@ namespace CodeGenerator
         }
     }
 
+    public class Comment : Member
+    {
+        string m_comment;
+        public Comment(string commentString) : 
+            base("", "", "", "")
+        {
+            m_comment = commentString;
+        }
+        
+        public override string ToString(int indentLevel)
+        {
+            var indent = GetIndentLevel(indentLevel);
+            return string.Format("//{0}{1}", indent, m_comment);
+        }
+    }
+
     public class Property : AutoProperty
     {
         string m_fieldName;
         bool m_readOnly;
+        bool m_useOneLine;
         List<string> m_setterBody = new List<string>();
         List<string> m_getterBody = new List<string>();
    
@@ -527,9 +546,24 @@ namespace CodeGenerator
             return Regex.Replace(m_fieldName, @"[\s*\(\)]", "");
         }
 
+        public Property SetOneLine(bool oneLine)
+        {
+            m_useOneLine = oneLine;
+            return this;
+        }
+
         string GetFormat()
         {
-            return m_readOnly ?
+            if(m_useOneLine)
+            {
+                return m_readOnly ?
+@"{8}{5}{0}{6}{1} {2} {{ get {{{7} return {3}; }} }}"
+:
+@"{9}{5}{0}{6}{1} {2} {{ get {{{7} return {3}; }} {4}set {{{8} {3} = value; }} }}";
+            }
+            else
+            {
+                return m_readOnly ?
 @"{8}{5}{0}{6}{1} {2} 
 {5}{{ 
     {5}get 
@@ -549,6 +583,7 @@ namespace CodeGenerator
         {5}{3} = value;
     {5}}}
 {5}}}";
+            }
 
         }
     }
@@ -592,6 +627,15 @@ namespace CodeGenerator
         public Class SetIndentLevel(int indentLevel)
         {
             this.m_indentLevel = indentLevel;
+            return this;
+        }
+
+        public Class InsertMember(params Member[] member)
+        {
+            foreach (var m in member)
+            {
+                members.Insert(0, m);
+            }
             return this;
         }
 

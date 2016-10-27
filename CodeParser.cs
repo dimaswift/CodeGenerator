@@ -97,6 +97,13 @@ namespace CodeGenerator
             return match.Success;
         }
 
+        protected bool IsOneLineProperty(string line, int indent = 0)
+        {
+            var pattern = GetIndent(indent) + @"\w+.*\w+\s+{\s*get\s*{\s*.*}\s*$";
+            var match = Regex.Match(line, pattern);
+            return match.Success;
+        }
+
         protected bool IsKeyword(string word)
         {
             return Regex.IsMatch(word, @"\s?(" + ALL_KEYWORDS + @")\s?");
@@ -339,7 +346,7 @@ namespace CodeGenerator
             int lineIndex = 0;
             var prop = new Property(auto.type, auto.name, auto.protectionLevel, fieldName, auto.prefix);
             bool hasSetter = false;
-
+           
             foreach (var line in GetClosure(body, startLine, indentLevel))
             {
                 if (lineIndex > 1)
@@ -358,6 +365,7 @@ namespace CodeGenerator
                 }
                 lineIndex++;
             }
+         
             prop.SetReadonly(!hasSetter);
             return prop;
         }
@@ -545,6 +553,16 @@ namespace CodeGenerator
                             attributes.Clear();
                         }
                         cls.AddMember(field);
+                    }
+                    else if (IsOneLineProperty(line, indent + 1))
+                    {
+                        var prop = propParser.ParseProp(source, line, indent + 1).SetOneLine(true);
+                        if (attributes.Count > 0)
+                        {
+                            prop.AddAttributes(attributes.ToArray());
+                            attributes.Clear();
+                        }
+                        cls.AddMember(prop);
                     }
                     else if (IsProperty(line, indent + 1))
                     {
