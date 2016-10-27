@@ -337,6 +337,20 @@ namespace CodeGenerator
             var prop = new AutoProperty(type, name, prot, setter, prefix);
             return prop;
         }
+        // TO DO: finish parsing
+        public Property ParseOneLineProp(string body, string line, int indentLevel)
+        {
+            //string type = null;
+            //string name = null;
+            //string prot = null;
+            //string prefix = null;
+            //string setter = Filter(line, @"get\s?{\s?return\s(.*);\s?}", 0);
+            //line = Regex.Replace(line, @"^\s+", "");
+            //var words = line.Split(' ');
+            //name = Filter(line, @"get\s?{\s?return\s(.*);\s?}", 0);
+            //var prop = new Property(type, name, prot, setter, prefix).SetOneLine(true);
+            return null;
+        }
 
         public Property ParseProp(string body, string startLine, int indentLevel)
         {
