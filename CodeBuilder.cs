@@ -602,10 +602,12 @@ namespace CodeGenerator
         int m_indentLevel;
         int m_builderCapacity = 10000;
 
+        public string nameSpace = "";
         public List<Member> members { get { return m_members; } }
         public List<string> directives { get { return m_directives; } }
         public List<string> regions { get { return m_regions; } }
         public List<string> inherited { get { return m_inherited; } }
+
 
         public Class(string name) : base("class", name)
         { 
@@ -703,9 +705,16 @@ namespace CodeGenerator
 
         public override string ToString(int indentLevel)
         {
-            this.m_indentLevel = indentLevel;
             StringBuilder builder = new StringBuilder(m_builderCapacity);
-            m_indent = GetIndentLevel(indentLevel);
+            this.m_indentLevel = indentLevel;
+            if (!string.IsNullOrEmpty(nameSpace))
+            {
+                m_indentLevel++;
+                builder.AppendLine("namespace " + nameSpace);
+                builder.AppendLine("{");
+            }
+           
+            m_indent = GetIndentLevel(m_indentLevel);
             AppendDirectives(builder);
             builder.AppendLine();
             AppentAttributes(builder);
@@ -715,8 +724,14 @@ namespace CodeGenerator
             AppendOpenBracket(builder);
             AppendMembers(builder);
             AppendCloseBracket(builder);
+            if (!string.IsNullOrEmpty(nameSpace))
+            {
+                builder.AppendLine("}");
+            }
             return builder.ToString();
         }
+
+
 
         public override string ToString()
         {
@@ -735,6 +750,8 @@ namespace CodeGenerator
             }
             return builder;
         }
+
+
 
         StringBuilder AppendInheritance(StringBuilder builder)
         {

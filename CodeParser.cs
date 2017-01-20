@@ -133,6 +133,13 @@ namespace CodeGenerator
             return match.Success;
         }
 
+        protected bool IsNameSpace(string line, int indent)
+        {
+            var pattern = GetIndent(indent) + @"namespace\s.*$";
+            var match = Regex.Match(line, pattern);
+            return match.Success;
+        }
+
         protected IEnumerable<string> GetClosure(string body, string startLine, int indentLevel)
         {
             var indent = GetIndent(indentLevel);
@@ -499,9 +506,14 @@ namespace CodeGenerator
         {
             var lines = source.Split('\n');
             string mainLine = null;
-
+            string nameSpace = "";
             foreach (var line in lines)
             {
+                if (IsNameSpace(line, indent))
+                {
+                    nameSpace = Filter(line, @"namespace\s(.*$)", 0);
+                    indent++;
+                }
                 if (IsClass(line, indent))
                 {
                     mainLine = line;
@@ -515,6 +527,8 @@ namespace CodeGenerator
                 var protectionLevel = GetProtectionLevel(mainLine);
                 var prefix = GetPrefix(mainLine);
                 var cls = new Class(name, protectionLevel, prefix);
+               
+                cls.nameSpace = nameSpace;
                 var methodParser = new MethodParser();
                 var fieldParser = new FieldParser();
                 var propParser = new PropertyParser();
