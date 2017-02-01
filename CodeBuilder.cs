@@ -187,7 +187,7 @@ namespace CodeGenerator
         {
             foreach (var l in lines)
             {
-                this.m_lines.Add(WithSemicolon(l));
+                this.m_lines.Add(l);
             }
             return this;
         }
