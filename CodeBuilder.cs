@@ -28,7 +28,11 @@ namespace CodeGenerator
         const string INDENT_1 = "    ";
         const string INDENT_2 = "        ";
         const string INDENT_3 = "            ";
-
+        const string INDENT_4 = "                ";
+        const string INDENT_5 = "                    ";
+        const string INDENT_6 = "                        ";
+        const string INDENT_7 = "                            ";
+        const string INDENT_8 = "                                ";
         public virtual string ToString(int indentLevel)
         {
             return GetIndentLevel(indentLevel) + ToString();
@@ -60,8 +64,18 @@ namespace CodeGenerator
                     return INDENT_2;
                 case 3:
                     return INDENT_3;
+                case 4:
+                    return INDENT_4;
+                case 5:
+                    return INDENT_5;
+                case 6:
+                    return INDENT_6;
+                case 7:
+                    return INDENT_7;
+                case 8:
+                    return INDENT_8;
                 default:
-                    return INDENT_0;
+                    return INDENT_8;
             }
         }
 
@@ -234,6 +248,7 @@ namespace CodeGenerator
         string GetBody(int indentLevel)
         {
             var indent = GetIndentLevel(indentLevel);
+
             string body = "";
             for (int i = 0; i < m_lines.Count; i++)
             {
