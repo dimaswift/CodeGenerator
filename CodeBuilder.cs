@@ -725,10 +725,9 @@ namespace CodeGenerator
             if (!string.IsNullOrEmpty(nameSpace))
             {
                 m_indentLevel++;
-                builder.AppendLine("namespace " + nameSpace);
+                builder.AppendLine("namespace " + RemoveNewLines(nameSpace));
                 builder.AppendLine("{");
             }
-           
             m_indent = GetIndentLevel(m_indentLevel);
             AppendDirectives(builder);
             builder.AppendLine();
@@ -757,6 +756,7 @@ namespace CodeGenerator
         {
             if (m_directives != null)
             {
+                UnityEngine.Debug.Log(string.Format("{0}", m_directives.Count)); 
                 foreach (var dir in m_directives)
                 {
                     builder.Append(m_indent);
