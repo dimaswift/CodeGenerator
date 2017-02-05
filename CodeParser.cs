@@ -34,6 +34,35 @@ namespace CodeGenerator
             }
         }
 
+        public static string ReplaceRegion(string classBody, string regionName, string newRegionContent)
+        {
+            int start = 0;
+            int end = 0;
+            var newRegionLines = newRegionContent.Split('\n');
+            var classStringLines = new List<string>(classBody.Split('\n'));
+            for (int i = 0; i < classStringLines.Count; i++)
+            {
+                if (classStringLines[i].Contains("#region " + regionName))
+                {
+                    start = i + 1;
+                }
+                else if (classStringLines[i].Contains("#endregion " + regionName))
+                {
+                    end = i;
+                }
+            }
+
+
+            classStringLines.RemoveRange(start, end - start);
+
+
+            for (int i = newRegionLines.Length - 1; i >= 0; i--)
+            {
+                classStringLines.Insert(start, newRegionLines[i]);
+            }
+
+            return string.Join("\n", classStringLines.ToArray());
+        }
 
         protected IEnumerable<string> GetDirectives(string body)
         {
